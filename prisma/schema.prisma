@@ -1,0 +1,54 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String?
+  email     String   @unique
+  password  String
+  isAdmin   Boolean  @default(false)
+  babies    Baby[]
+  createdAt DateTime @default(now())
+}
+
+model Baby {
+  id        String     @id @default(cuid())
+  name      String
+  birthDate DateTime?
+  pesoKg    Float?
+  fotoUrl   String?
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  records   Record[]
+  reminders Reminder[]
+  createdAt DateTime   @default(now())
+}
+
+model Record {
+  id         String   @id @default(cuid())
+  babyId     String
+  baby       Baby     @relation(fields: [babyId], references: [id], onDelete: Cascade)
+  type       String
+  recordedAt DateTime @default(now())
+  formulaMl  Int?
+  pechoMin   Int?
+  notes      String?
+  createdAt  DateTime @default(now())
+}
+
+model Reminder {
+  id           String   @id @default(cuid())
+  babyId       String
+  baby         Baby     @relation(fields: [babyId], references: [id], onDelete: Cascade)
+  title        String
+  reminderTime DateTime
+  reminderType String
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+}
