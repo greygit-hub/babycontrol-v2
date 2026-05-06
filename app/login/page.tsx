@@ -47,17 +47,17 @@ export default function LoginPage() {
           <form onSubmit={modo === "login" ? handleLogin : handleRegistro} className="space-y-3">
             {modo === "registro" && (
               <div>
-                <label className="text-xs font-semibold text-slate-500 block mb-1">Tu nombre</label>
-                <input value={name} onChange={e => setName(e.target.value)} placeholder="Maria Garcia" className="w-full border-2 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-purple-400" required />
+                <label className="text-xs font-semibold text-purple-700 block mb-1">Tu nombre</label>
+                <input value={name} onChange={e => setName(e.target.value)} placeholder="Maria Garcia" className="w-full border-2 border-purple-300 rounded-2xl px-4 py-3 text-sm text-slate-800 placeholder:text-purple-200 focus:outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-100" required />
               </div>
             )}
             <div>
-              <label className="text-xs font-semibold text-slate-500 block mb-1">Email</label>
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="mama@email.com" className="w-full border-2 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-purple-400" required />
+              <label className="text-xs font-semibold text-purple-700 block mb-1">Email</label>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="mama@email.com" className="w-full border-2 border-purple-300 rounded-2xl px-4 py-3 text-sm text-slate-800 placeholder:text-purple-200 focus:outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-100" required />
             </div>
             <div>
-              <label className="text-xs font-semibold text-slate-500 block mb-1">Contrasena</label>
-              <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="w-full border-2 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:border-purple-400" required />
+              <label className="text-xs font-semibold text-purple-700 block mb-1">Contrasena</label>
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="w-full border-2 border-purple-300 rounded-2xl px-4 py-3 text-sm text-slate-800 placeholder:text-purple-200 focus:outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-100" required />
             </div>
             {error && <p className="text-sm text-red-600 bg-red-50 rounded-2xl p-3">{error}</p>}
             <button type="submit" disabled={loading} className="w-full py-4 rounded-2xl font-bold text-lg bg-purple-500 text-white shadow-md disabled:opacity-50">
