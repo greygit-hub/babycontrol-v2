@@ -56,7 +56,7 @@ export default function LoginPage() {
               <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="mama@email.com" className="w-full border-2 border-purple-300 rounded-2xl px-4 py-3 text-sm text-slate-800 placeholder:text-purple-200 focus:outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-100" required />
             </div>
             <div>
-              <label className="text-xs font-semibold text-purple-700 block mb-1">Contrasena</label>
+              <label className="text-xs font-semibold text-purple-700 block mb-1">Contraseña</label>
               <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="w-full border-2 border-purple-300 rounded-2xl px-4 py-3 text-sm text-slate-800 placeholder:text-purple-200 focus:outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-100" required />
             </div>
             {error && <p className="text-sm text-red-600 bg-red-50 rounded-2xl p-3">{error}</p>}

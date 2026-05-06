@@ -3,13 +3,14 @@ import * as React from "react";
 import { useRouter, useParams } from "next/navigation";
 
 const TIPOS = [
-  { value: "FORMULA", emoji: "🍼", label: "Formula", color: "bg-blue-100 border-blue-300 text-blue-800" },
+  { value: "FORMULA", emoji: "🍼", label: "Fórmula", color: "bg-blue-100 border-blue-300 text-blue-800" },
   { value: "PECHO", emoji: "🤱", label: "Pecho", color: "bg-pink-100 border-pink-300 text-pink-800" },
-  { value: "PANAL_PIPI", emoji: "💧", label: "Pipi", color: "bg-yellow-100 border-yellow-300 text-yellow-800" },
-  { value: "PANAL_POPO", emoji: "💩", label: "Popo", color: "bg-amber-100 border-amber-300 text-amber-800" },
-  { value: "SUENO", emoji: "😴", label: "Sueno", color: "bg-purple-100 border-purple-300 text-purple-800" },
+  { value: "PANAL_PIPI", emoji: "💧", label: "Pipí", color: "bg-yellow-100 border-yellow-300 text-yellow-800" },
+  { value: "PANAL_POPO", emoji: "💩", label: "Popó", color: "bg-amber-100 border-amber-300 text-amber-800" },
+  { value: "SUENO", emoji: "😴", label: "Sueño", color: "bg-purple-100 border-purple-300 text-purple-800" },
   { value: "PESO", emoji: "⚖️", label: "Peso", color: "bg-green-100 border-green-300 text-green-800" },
   { value: "TEMPERATURA", emoji: "🌡️", label: "Temperatura", color: "bg-orange-100 border-orange-300 text-orange-800" },
+  { value: "MEDICAMENTO", emoji: "💊", label: "Medicamento", color: "bg-red-100 border-red-300 text-red-800" },
 ];
 type RecordItem = { id: string; type: string; formulaMl: number | null; pechoMin: number | null; notes: string | null; recordedAt: string };
 type Diagnostico = { bebe: { pesoKg: number; edadTexto: string; mlRecomendadosDia: number; mlMinPorToma: number; mlMaxPorToma: number; tomasMinDia: number; tomasMaxDia: number; pipiMinimo: number }; alertasCriticas: string[]; alertas: string[]; positivos: string[] };
@@ -50,6 +51,12 @@ export default function BebePage() {
   const [savingPeso, setSavingPeso] = React.useState(false);
   const [savedPeso, setSavedPeso] = React.useState(false);
   const [subiendoFoto, setSubiendoFoto] = React.useState(false);
+  const [editingId, setEditingId] = React.useState<string | null>(null);
+  const [editFormulaMl, setEditFormulaMl] = React.useState("");
+  const [editPechoMin, setEditPechoMin] = React.useState("");
+  const [editNotes, setEditNotes] = React.useState("");
+  const [editHora, setEditHora] = React.useState("");
+  const [savingEdit, setSavingEdit] = React.useState(false);
 
   React.useEffect(() => { loadAll(); }, [babyId]);
   React.useEffect(() => { loadRecords(); }, [fechaSeleccionada]);
@@ -65,7 +72,7 @@ export default function BebePage() {
     const [r1, r2, r3, r4] = await Promise.all([
       fetch("/api/records?babyId=" + babyId + "&" + dayRange(hoyStr)),
       fetch("/api/reminders?babyId=" + babyId),
-      fetch("/api/diagnostico?babyId=" + babyId),
+      fetch("/api/diagnostico?babyId=" + babyId + "&" + dayRange(hoyStr)),
       fetch("/api/baby?babyId=" + babyId),
     ]);
     if (r1.ok) setRecords(await r1.json());
@@ -99,6 +106,29 @@ export default function BebePage() {
   }
 
   async function eliminar(id: string) { setDeleting(id); await fetch("/api/records/" + id, { method: "DELETE" }); loadAll(); loadRecords(); setDeleting(null); }
+
+  function iniciarEdicion(r: RecordItem) {
+    setEditingId(r.id);
+    setEditFormulaMl(r.formulaMl ? String(r.formulaMl) : "");
+    setEditPechoMin(r.pechoMin ? String(r.pechoMin) : "");
+    setEditNotes(r.notes ?? "");
+    setEditHora(new Date(r.recordedAt).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", hour12: false }));
+  }
+
+  async function actualizarRegistro(r: RecordItem) {
+    setSavingEdit(true);
+    const base = new Date(fechaSeleccionada + "T00:00:00");
+    const [h, m] = editHora.split(":");
+    base.setHours(parseInt(h), parseInt(m), 0, 0);
+    await fetch("/api/records/" + r.id, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ formulaMl: editFormulaMl ? parseInt(editFormulaMl) : null, pechoMin: editPechoMin ? parseInt(editPechoMin) : null, notes: editNotes || null, recordedAt: base.toISOString() }),
+    });
+    setEditingId(null);
+    loadAll(); loadRecords();
+    setSavingEdit(false);
+  }
 
   async function guardarR() {
     if (!rTitle) return;
@@ -155,8 +185,8 @@ export default function BebePage() {
       <div className="px-4 pt-3 grid grid-cols-4 gap-2">
         <div className="bg-white rounded-2xl p-3 text-center shadow-sm border border-purple-100"><p className="text-xl font-bold text-purple-600">{totalTomas}</p><p className="text-xs text-slate-500">Tomas</p></div>
         <div className="bg-white rounded-2xl p-3 text-center shadow-sm border border-blue-100"><p className="text-xl font-bold text-blue-600">{totalFormula}</p><p className="text-xs text-slate-500">ml</p></div>
-        <div className="bg-white rounded-2xl p-3 text-center shadow-sm border border-yellow-100"><p className="text-xl font-bold text-yellow-600">{totalPipi}</p><p className="text-xs text-slate-500">Pipi</p></div>
-        <div className="bg-white rounded-2xl p-3 text-center shadow-sm border border-amber-100"><p className="text-xl font-bold text-amber-600">{totalPopo}</p><p className="text-xs text-slate-500">Popo</p></div>
+        <div className="bg-white rounded-2xl p-3 text-center shadow-sm border border-yellow-100"><p className="text-xl font-bold text-yellow-600">{totalPipi}</p><p className="text-xs text-slate-500">Pipí</p></div>
+        <div className="bg-white rounded-2xl p-3 text-center shadow-sm border border-amber-100"><p className="text-xl font-bold text-amber-600">{totalPopo}</p><p className="text-xs text-slate-500">Popó</p></div>
       </div>
       <div className="px-4 pt-3 grid grid-cols-5 gap-1">
         {(["inicio","registro","estadisticas","recordatorios","perfil"] as Seccion[]).map((s, i) => {
@@ -175,7 +205,7 @@ export default function BebePage() {
             </div>
           </div>
           {esHoy && diagnostico && (diagnostico.alertas.length > 0 || diagnostico.positivos.length > 0) && <div className="bg-white rounded-3xl shadow-sm border p-5 space-y-3">
-            <h2 className="text-lg font-bold text-slate-700">Diagnostico de hoy</h2>
+            <h2 className="text-lg font-bold text-slate-700">Diagnóstico de hoy</h2>
             <div className="bg-slate-50 rounded-2xl p-3 text-sm text-slate-600 space-y-1">
               <p>Meta: <strong>{diagnostico.bebe.mlRecomendadosDia} ml</strong> en <strong>{diagnostico.bebe.tomasMinDia}-{diagnostico.bebe.tomasMaxDia} tomas</strong></p>
               <p>Por toma: <strong>{diagnostico.bebe.mlMinPorToma}-{diagnostico.bebe.mlMaxPorToma} ml</strong></p>
@@ -185,23 +215,39 @@ export default function BebePage() {
           </div>}
           <div className="bg-white rounded-3xl shadow-sm border p-5 space-y-3">
             <h2 className="text-lg font-bold text-slate-700">{esHoy ? "Registros de hoy" : "Registros del " + new Date(fechaSeleccionada + "T12:00:00").toLocaleDateString("es-MX", {day:"numeric",month:"long"})}</h2>
-            {records.length === 0 ? <div className="text-center py-6"><p className="text-4xl mb-2">👶</p><p className="text-slate-400 text-sm">Sin registros este dia</p>{esHoy && <button onClick={() => setSeccion("registro")} className="mt-3 bg-blue-500 text-white px-5 py-2 rounded-2xl text-sm font-semibold">Registrar ahora</button>}</div>
-            : <div className="space-y-2">{records.map(r => { const t = TIPOS.find(x => x.value === r.type); return <div key={r.id} className={"rounded-2xl border p-3 " + (t?.color ?? "bg-slate-50")}>
+            {records.length === 0 ? <div className="text-center py-6"><p className="text-4xl mb-2">👶</p><p className="text-slate-400 text-sm">Sin registros este día</p>{esHoy && <button onClick={() => setSeccion("registro")} className="mt-3 bg-blue-500 text-white px-5 py-2 rounded-2xl text-sm font-semibold">Registrar ahora</button>}</div>
+            : <div className="space-y-2">{records.map(r => { const t = TIPOS.find(x => x.value === r.type); const isEditing = editingId === r.id; return <div key={r.id} className={"rounded-2xl border p-3 " + (t?.color ?? "bg-slate-50")}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2"><span className="text-2xl">{t?.emoji}</span><p className="font-semibold text-sm">{t?.label ?? r.type}</p></div>
-                  <div className="flex items-center gap-2"><p className="text-xs opacity-70">{new Date(r.recordedAt).toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"})}</p><button onClick={() => eliminar(r.id)} disabled={deleting === r.id} className="text-red-400 text-sm">{deleting === r.id ? "..." : "🗑️"}</button></div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs opacity-70">{new Date(r.recordedAt).toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"})}</p>
+                    <button onClick={() => isEditing ? setEditingId(null) : iniciarEdicion(r)} className="text-sm px-1 opacity-60 hover:opacity-100">{isEditing ? "✕" : "✏️"}</button>
+                    <button onClick={() => eliminar(r.id)} disabled={deleting === r.id} className="text-red-400 text-sm">{deleting === r.id ? "..." : "🗑️"}</button>
+                  </div>
                 </div>
-                <div className="mt-1 ml-8">
+                {!isEditing && <div className="mt-1 ml-8">
                   {r.formulaMl ? <p className="text-xs opacity-80">{r.formulaMl} ml</p> : null}
                   {r.pechoMin ? <p className="text-xs opacity-80">{r.pechoMin} min</p> : null}
                   {r.notes ? <p className="text-xs opacity-80 italic">{r.notes}</p> : null}
-                </div>
+                </div>}
+                {isEditing && <div className="mt-3 pt-3 border-t border-current border-opacity-20 space-y-2">
+                  <div className="flex gap-2">
+                    <div className="flex-1"><p className="text-xs font-semibold opacity-60 mb-1">Hora</p><input type="time" value={editHora} onChange={e => setEditHora(e.target.value)} className="w-full border border-current border-opacity-30 rounded-xl px-3 py-2 text-sm bg-white bg-opacity-70 text-slate-800 focus:outline-none" /></div>
+                    {(r.type === "FORMULA" || r.type === "MEDICAMENTO") && <div className="flex-1"><p className="text-xs font-semibold opacity-60 mb-1">ml</p><input type="number" value={editFormulaMl} onChange={e => setEditFormulaMl(e.target.value)} className="w-full border border-current border-opacity-30 rounded-xl px-3 py-2 text-sm bg-white bg-opacity-70 text-slate-800 focus:outline-none" /></div>}
+                    {(r.type === "PECHO" || r.type === "SUENO") && <div className="flex-1"><p className="text-xs font-semibold opacity-60 mb-1">Min</p><input type="number" value={editPechoMin} onChange={e => setEditPechoMin(e.target.value)} className="w-full border border-current border-opacity-30 rounded-xl px-3 py-2 text-sm bg-white bg-opacity-70 text-slate-800 focus:outline-none" /></div>}
+                  </div>
+                  <input value={editNotes} onChange={e => setEditNotes(e.target.value)} placeholder="Notas..." className="w-full border border-current border-opacity-30 rounded-xl px-3 py-2 text-sm bg-white bg-opacity-70 text-slate-800 focus:outline-none" />
+                  <div className="flex gap-2">
+                    <button onClick={() => setEditingId(null)} className="flex-1 py-2 rounded-xl text-sm font-semibold bg-white bg-opacity-50 border border-current border-opacity-30">Cancelar</button>
+                    <button onClick={() => actualizarRegistro(r)} disabled={savingEdit} className="flex-1 py-2 rounded-xl text-sm font-semibold bg-white bg-opacity-80 text-slate-700 disabled:opacity-50">{savingEdit ? "Guardando..." : "Guardar"}</button>
+                  </div>
+                </div>}
               </div>; })}</div>}
           </div>
         </div>}
         {seccion === "estadisticas" && <div className="bg-white rounded-3xl shadow-sm border p-5 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-slate-700">Estadisticas</h2>
+            <h2 className="text-lg font-bold text-slate-700">Estadísticas</h2>
             <div className="flex gap-2">
               <button onClick={() => setPeriodo("semana")} className={"px-3 py-1 rounded-2xl text-xs font-semibold " + (periodo === "semana" ? "bg-indigo-500 text-white" : "bg-slate-100 text-slate-600")}>Semana</button>
               <button onClick={() => setPeriodo("mes")} className={"px-3 py-1 rounded-2xl text-xs font-semibold " + (periodo === "mes" ? "bg-indigo-500 text-white" : "bg-slate-100 text-slate-600")}>Mes</button>
@@ -211,10 +257,10 @@ export default function BebePage() {
             <div className="bg-indigo-50 rounded-2xl p-4 space-y-2">
               <p className="text-sm font-bold text-indigo-800">Promedios diarios</p>
               <div className="grid grid-cols-2 gap-2">
-                <div className="bg-white rounded-xl p-3 text-center"><p className="text-lg font-bold text-blue-600">{stats.promedios.formula}</p><p className="text-xs text-slate-500">ml formula/dia</p></div>
-                <div className="bg-white rounded-xl p-3 text-center"><p className="text-lg font-bold text-purple-600">{stats.promedios.tomas}</p><p className="text-xs text-slate-500">tomas/dia</p></div>
-                <div className="bg-white rounded-xl p-3 text-center"><p className="text-lg font-bold text-yellow-600">{stats.promedios.pipi}</p><p className="text-xs text-slate-500">panales pipi/dia</p></div>
-                <div className="bg-white rounded-xl p-3 text-center"><p className="text-lg font-bold text-amber-600">{stats.promedios.popo}</p><p className="text-xs text-slate-500">panales popo/dia</p></div>
+                <div className="bg-white rounded-xl p-3 text-center"><p className="text-lg font-bold text-blue-600">{stats.promedios.formula}</p><p className="text-xs text-slate-500">ml fórmula/día</p></div>
+                <div className="bg-white rounded-xl p-3 text-center"><p className="text-lg font-bold text-purple-600">{stats.promedios.tomas}</p><p className="text-xs text-slate-500">tomas/día</p></div>
+                <div className="bg-white rounded-xl p-3 text-center"><p className="text-lg font-bold text-yellow-600">{stats.promedios.pipi}</p><p className="text-xs text-slate-500">pañales pipí/día</p></div>
+                <div className="bg-white rounded-xl p-3 text-center"><p className="text-lg font-bold text-amber-600">{stats.promedios.popo}</p><p className="text-xs text-slate-500">pañales popó/día</p></div>
               </div>
             </div>
             <div className="space-y-2">{stats.dias.map((d, i) => <div key={i} className="bg-slate-50 rounded-2xl p-3">
@@ -233,9 +279,10 @@ export default function BebePage() {
           <h2 className="text-lg font-bold text-slate-700">Nuevo registro</h2>
           <div className="grid grid-cols-2 gap-3">{TIPOS.map(t => <button key={t.value} onClick={() => setTipo(t.value)} className={"p-4 rounded-2xl border-2 text-left transition-all " + (tipo === t.value ? t.color + " border-current shadow-md" : "bg-slate-50 border-slate-200 text-slate-600")}><p className="text-3xl mb-1">{t.emoji}</p><p className="font-semibold text-sm">{t.label}</p></button>)}</div>
           <div><label className="text-sm font-semibold text-purple-700 block mb-2">Hora</label><input type="time" value={horaRegistro} onChange={e => setHoraRegistro(e.target.value)} className="w-full border-2 border-purple-300 rounded-2xl px-4 py-3 text-sm text-slate-800 placeholder:text-purple-200 focus:outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-100" /></div>
-          {tipo === "FORMULA" && <div><label className="text-sm font-semibold text-purple-700 block mb-2">ml</label><div className="flex gap-2 flex-wrap mb-2">{[30,60,90,120,150,180].map(ml => <button key={ml} onClick={() => setFormulaMl(String(ml))} className={"px-4 py-2 rounded-2xl border-2 font-semibold text-sm " + (formulaMl === String(ml) ? "bg-blue-500 text-white border-blue-500" : "bg-white border-slate-200 text-slate-600")}>{ml}</button>)}</div><input type="number" value={formulaMl} onChange={e => setFormulaMl(e.target.value)} placeholder="Otra cantidad" className="w-full border-2 border-purple-300 rounded-2xl px-4 py-3 text-sm text-slate-800 placeholder:text-purple-200 focus:outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-100" /></div>}
+          {tipo === "FORMULA" && <div><label className="text-sm font-semibold text-purple-700 block mb-2">Mililitros</label><div className="flex gap-2 flex-wrap mb-2">{[30,60,90,120,150,180].map(ml => <button key={ml} onClick={() => setFormulaMl(String(ml))} className={"px-4 py-2 rounded-2xl border-2 font-semibold text-sm " + (formulaMl === String(ml) ? "bg-blue-500 text-white border-blue-500" : "bg-white border-slate-200 text-slate-600")}>{ml}</button>)}</div><input type="number" value={formulaMl} onChange={e => setFormulaMl(e.target.value)} placeholder="Otra cantidad" className="w-full border-2 border-purple-300 rounded-2xl px-4 py-3 text-sm text-slate-800 placeholder:text-purple-200 focus:outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-100" /></div>}
           {(tipo === "PECHO" || tipo === "SUENO") && <div><label className="text-sm font-semibold text-purple-700 block mb-2">Minutos</label><div className="flex gap-2 flex-wrap mb-2">{[5,10,15,20,30,60].map(min => <button key={min} onClick={() => setPechoMin(String(min))} className={"px-4 py-2 rounded-2xl border-2 font-semibold text-sm " + (pechoMin === String(min) ? "bg-pink-500 text-white border-pink-500" : "bg-white border-slate-200 text-slate-600")}>{min}</button>)}</div><input type="number" value={pechoMin} onChange={e => setPechoMin(e.target.value)} placeholder="Otros minutos" className="w-full border-2 border-purple-300 rounded-2xl px-4 py-3 text-sm text-slate-800 placeholder:text-purple-200 focus:outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-100" /></div>}
-          <div><label className="text-sm font-semibold text-purple-700 block mb-2">Notas</label><textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Observaciones..." className="w-full border-2 border-purple-300 rounded-2xl px-4 py-3 text-sm text-slate-800 placeholder:text-purple-200 focus:outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-100 resize-none" rows={2} /></div>
+          {tipo === "MEDICAMENTO" && <div><label className="text-sm font-semibold text-purple-700 block mb-2">Nombre y dosis</label><input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Ej: Paracetamol 2.5ml" className="w-full border-2 border-purple-300 rounded-2xl px-4 py-3 text-sm text-slate-800 placeholder:text-purple-200 focus:outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-100" /></div>}
+          {tipo !== "MEDICAMENTO" && <div><label className="text-sm font-semibold text-purple-700 block mb-2">Notas opcionales</label><textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Observaciones..." className="w-full border-2 border-purple-300 rounded-2xl px-4 py-3 text-sm text-slate-800 placeholder:text-purple-200 focus:outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-100 resize-none" rows={2} /></div>}
           {savedMsg && <div className="bg-green-100 border border-green-300 rounded-2xl p-3 text-center"><p className="text-green-700 font-semibold">Guardado correctamente</p></div>}
           <button onClick={guardar} disabled={saving} className="w-full py-4 rounded-2xl font-bold text-lg bg-blue-500 text-white shadow-md disabled:opacity-50">{saving ? "Guardando..." : "Guardar " + (tipoActual?.label ?? "")}</button>
         </div>}
@@ -266,7 +313,7 @@ export default function BebePage() {
             {savedPeso && <p className="text-green-600 text-sm text-center">Peso actualizado</p>}
           </div>
           <div className="bg-white rounded-3xl shadow-sm border p-5 space-y-3">
-            <h2 className="text-lg font-bold text-slate-700">Foto del bebe</h2>
+            <h2 className="text-lg font-bold text-slate-700">Foto del bebé</h2>
             <div className="flex items-center gap-4">
               <label className="cursor-pointer">
                 {baby?.fotoUrl ? <img src={baby.fotoUrl} alt={baby.name} className="w-20 h-20 rounded-full object-cover border-2 border-purple-300" /> : <div className="w-20 h-20 rounded-full bg-purple-100 border-2 border-purple-300 flex items-center justify-center text-3xl">👶</div>}
