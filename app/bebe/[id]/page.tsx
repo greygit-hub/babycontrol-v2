@@ -22,7 +22,7 @@ export default function BebePage() {
   const router = useRouter();
   const params = useParams();
   const babyId = params.id as string;
-  const hoyStr = new Date().toISOString().slice(0, 10);
+  const hoyStr = (() => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0"); })();
   const [seccion, setSeccion] = React.useState<Seccion>("inicio");
   const [baby, setBaby] = React.useState<BabyInfo | null>(null);
   const [records, setRecords] = React.useState<RecordItem[]>([]);
@@ -55,9 +55,15 @@ export default function BebePage() {
   React.useEffect(() => { loadRecords(); }, [fechaSeleccionada]);
   React.useEffect(() => { loadStats(); }, [periodo, babyId]);
 
+  function dayRange(dateStr: string) {
+    const s = new Date(dateStr + "T00:00:00").toISOString();
+    const e = new Date(dateStr + "T23:59:59.999").toISOString();
+    return "start=" + s + "&end=" + e;
+  }
+
   async function loadAll() {
     const [r1, r2, r3, r4] = await Promise.all([
-      fetch("/api/records?babyId=" + babyId + "&fecha=" + hoyStr),
+      fetch("/api/records?babyId=" + babyId + "&" + dayRange(hoyStr)),
       fetch("/api/reminders?babyId=" + babyId),
       fetch("/api/diagnostico?babyId=" + babyId),
       fetch("/api/baby?babyId=" + babyId),
@@ -69,7 +75,7 @@ export default function BebePage() {
   }
 
   async function loadRecords() {
-    const res = await fetch("/api/records?babyId=" + babyId + "&fecha=" + fechaSeleccionada);
+    const res = await fetch("/api/records?babyId=" + babyId + "&" + dayRange(fechaSeleccionada));
     if (res.ok) setRecords(await res.json());
   }
 

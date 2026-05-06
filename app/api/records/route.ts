@@ -7,18 +7,24 @@ export async function GET(req: NextRequest) {
   const fecha = searchParams.get("fecha");
   if (!babyId) return NextResponse.json({ error: "babyId requerido" }, { status: 400 });
   const where: Record<string, unknown> = { babyId };
-  if (fecha) {
+  const start = searchParams.get("start");
+  const end = searchParams.get("end");
+  if (start && end) {
+    where.recordedAt = { gte: new Date(start), lte: new Date(end) };
+  } else if (fecha) {
     where.recordedAt = { gte: new Date(fecha + "T00:00:00.000Z"), lte: new Date(fecha + "T23:59:59.999Z") };
-  } else {
-    const hoy = new Date();
-    where.recordedAt = { gte: new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate(), 0, 0, 0), lte: new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate(), 23, 59, 59) };
   }
   const records = await prisma.record.findMany({ where, orderBy: { recordedAt: "desc" } });
   return NextResponse.json(records);
 }
 
 export async function POST(req: NextRequest) {
-  const { babyId, type, recordedAt, formulaMl, pechoMin, notes } = await req.json();
-  const record = await prisma.record.create({ data: { babyId, type, recordedAt: recordedAt ? new Date(recordedAt) : new Date(), formulaMl, pechoMin, notes } });
-  return NextResponse.json(record, { status: 201 });
+  try {
+    const { babyId, type, recordedAt, formulaMl, pechoMin, notes } = await req.json();
+    const record = await prisma.record.create({ data: { babyId, type, recordedAt: recordedAt ? new Date(recordedAt) : new Date(), formulaMl: formulaMl ?? null, pechoMin: pechoMin ?? null, notes: notes ?? null } });
+    return NextResponse.json(record, { status: 201 });
+  } catch (e) {
+    console.error("Error guardando registro:", e);
+    return NextResponse.json({ error: "Error al guardar" }, { status: 500 });
+  }
 }
