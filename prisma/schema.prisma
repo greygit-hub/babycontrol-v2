@@ -18,16 +18,56 @@ model User {
 }
 
 model Baby {
-  id        String     @id @default(cuid())
-  name      String
-  birthDate DateTime?
-  pesoKg    Float?
-  fotoUrl   String?
-  userId    String
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  records   Record[]
-  reminders Reminder[]
-  createdAt DateTime   @default(now())
+  id                       String                   @id @default(cuid())
+  name                     String
+  birthDate                DateTime?
+  pesoKg                   Float?
+  estaturaCmd               Float?
+  fotoUrl                  String?
+  userId                   String
+  user                     User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  records                  Record[]
+  reminders                Reminder[]
+  estimulacionChecks       EstimulacionCheck[]
+  estimulacionNotas        EstimulacionNota[]
+  medicamentoTratamientos  MedicamentoTratamiento[]
+  suplementoTratamientos   SuplementoTratamiento[]
+  vacunas                  Vacuna[]
+  diagnosticoHistorial     DiagnosticoHistorial[]
+  growthRecords            GrowthRecord[]
+  createdAt                DateTime                 @default(now())
+}
+
+model GrowthRecord {
+  id          String   @id @default(cuid())
+  babyId      String
+  baby        Baby     @relation(fields: [babyId], references: [id], onDelete: Cascade)
+  fecha       DateTime @default(now())
+  pesoKg      Float?
+  estaturaCmd  Float?
+  createdAt   DateTime @default(now())
+}
+
+model EstimulacionNota {
+  id        String   @id @default(cuid())
+  babyId    String
+  fecha     String
+  nota      String
+  baby      Baby     @relation(fields: [babyId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([babyId, fecha])
+}
+
+model EstimulacionCheck {
+  id        String   @id @default(cuid())
+  babyId    String
+  fecha     String
+  actividad String
+  baby      Baby     @relation(fields: [babyId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([babyId, fecha, actividad])
 }
 
 model Record {
@@ -51,4 +91,76 @@ model Reminder {
   reminderType String
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
+}
+
+model MedicamentoTratamiento {
+  id               String             @id @default(cuid())
+  babyId           String
+  baby             Baby               @relation(fields: [babyId], references: [id], onDelete: Cascade)
+  nombre           String
+  dosis            String
+  frecuenciaHoras  Int
+  diasTotal        Int
+  fechaInicio      DateTime
+  activo           Boolean            @default(true)
+  createdAt        DateTime           @default(now())
+  administraciones MedicamentoAdmin[]
+}
+
+model MedicamentoAdmin {
+  id             String                 @id @default(cuid())
+  tratamientoId  String
+  tratamiento    MedicamentoTratamiento @relation(fields: [tratamientoId], references: [id], onDelete: Cascade)
+  administradoEn DateTime               @default(now())
+  notas          String?
+  createdAt      DateTime               @default(now())
+}
+
+model SuplementoTratamiento {
+  id               String           @id @default(cuid())
+  babyId           String
+  baby             Baby             @relation(fields: [babyId], references: [id], onDelete: Cascade)
+  nombre           String
+  dosis            String
+  frecuenciaHoras  Int
+  diasTotal        Int
+  fechaInicio      DateTime
+  activo           Boolean          @default(true)
+  createdAt        DateTime         @default(now())
+  administraciones SuplementoAdmin[]
+}
+
+model SuplementoAdmin {
+  id             String                @id @default(cuid())
+  tratamientoId  String
+  tratamiento    SuplementoTratamiento @relation(fields: [tratamientoId], references: [id], onDelete: Cascade)
+  administradoEn DateTime              @default(now())
+  notas          String?
+  createdAt      DateTime              @default(now())
+}
+
+model Vacuna {
+  id         String    @id @default(cuid())
+  babyId     String
+  baby       Baby      @relation(fields: [babyId], references: [id], onDelete: Cascade)
+  nombre     String
+  folio      String?
+  aplicadaEn DateTime?
+  clinica    String?
+  lote       String?
+  createdAt  DateTime  @default(now())
+}
+
+model DiagnosticoHistorial {
+  id              String   @id @default(cuid())
+  babyId          String
+  baby            Baby     @relation(fields: [babyId], references: [id], onDelete: Cascade)
+  fecha           String
+  alertasCriticas String[]
+  alertas         String[]
+  positivos       String[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([babyId, fecha])
 }

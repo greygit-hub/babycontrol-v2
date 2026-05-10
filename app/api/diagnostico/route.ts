@@ -35,6 +35,7 @@ export async function GET(req: NextRequest) {
   const popo = records.filter(r => r.type === "PANAL_POPO").length;
   const sueno = records.filter(r => r.type === "SUENO").reduce((s, r) => s + (r.pechoMin ?? 0), 0);
   const meds = records.filter(r => r.type === "MEDICAMENTO");
+  const supls = records.filter(r => r.type === "SUPLEMENTO");
   const totalTomas = tomasFormula + tomasPecho;
   const alertas: string[] = [], positivos: string[] = [], alertasCriticas: string[] = [];
 
@@ -51,6 +52,7 @@ export async function GET(req: NextRequest) {
   if (sueno > 0 && sueno < 120) alertas.push("Solo " + sueno + " min de sueño. Los bebés necesitan 14-17 horas diarias.");
   else if (sueno >= 120) positivos.push("Buen descanso: " + sueno + " min de sueño.");
   if (meds.length > 0) positivos.push("Medicamento(s) registrado(s): " + meds.map(m => m.notes ?? "sin nombre").join(", ") + ".");
+  if (supls.length > 0) positivos.push("Suplemento(s) registrado(s): " + supls.map(s => s.notes ?? "sin nombre").join(", ") + ".");
   if (!alertas.length && !positivos.length && !alertasCriticas.length) positivos.push("Registra más actividades para un diagnóstico completo.");
 
   return NextResponse.json({ bebe: { pesoKg, edadTexto, mlRecomendadosDia, mlMinPorToma, mlMaxPorToma, tomasMinDia, tomasMaxDia, pipiMinimo }, alertasCriticas, alertas, positivos });

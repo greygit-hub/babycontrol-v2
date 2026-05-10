@@ -9,12 +9,14 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  const { babyId, fotoUrl, pesoKg, birthDate } = await req.json();
+  const { babyId, fotoUrl, pesoKg, estaturaCmd, birthDate, name } = await req.json();
   if (!babyId) return NextResponse.json({ error: "babyId requerido" }, { status: 400 });
   const data: Record<string, unknown> = {};
   if (fotoUrl !== undefined) data.fotoUrl = fotoUrl;
   if (pesoKg !== undefined) data.pesoKg = parseFloat(pesoKg);
+  if (estaturaCmd !== undefined) data.estaturaCmd = parseFloat(estaturaCmd);
   if (birthDate !== undefined) data.birthDate = new Date(birthDate);
+  if (name !== undefined) data.name = name;
   const baby = await prisma.baby.update({ where: { id: babyId }, data });
   return NextResponse.json(baby);
 }

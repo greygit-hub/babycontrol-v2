@@ -43,9 +43,12 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-purple-50 to-blue-50">
       <div className="bg-white shadow-sm px-6 py-4 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-purple-600">BabyControl</h1>
-          <p className="text-xs text-slate-400">Hola, {user?.name}</p>
+        <div className="flex items-center gap-3">
+          <img src="/logo-babycontrol.png" alt="BabyControl" className="h-10 w-auto" />
+          <div>
+            <h1 className="text-xl font-bold text-purple-600">BabyControl</h1>
+            <p className="text-xs text-slate-400">Hola, {user?.name}</p>
+          </div>
         </div>
         <div className="flex gap-2">
           {user?.isAdmin && <button onClick={() => router.push("/admin")} className="text-xs text-purple-500 border border-purple-300 rounded-2xl px-3 py-2">Admin</button>}
@@ -56,7 +59,7 @@ export default function DashboardPage() {
         <h2 className="text-lg font-bold text-slate-700">Mis bebes</h2>
         {babies.length === 0 && !showForm && (
           <div className="bg-white rounded-3xl border p-8 text-center space-y-3">
-            <p className="text-5xl">👶</p>
+            <div className="flex justify-center"><img src="/logo-babycontrol.png" alt="BabyControl" className="h-24 w-auto opacity-60" /></div>
             <p className="text-slate-500">Aun no tienes bebes registrados</p>
           </div>
         )}

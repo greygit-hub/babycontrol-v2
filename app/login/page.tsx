@@ -35,7 +35,9 @@ export default function LoginPage() {
     <div className="min-h-screen bg-gradient-to-b from-purple-50 to-blue-50 flex items-center justify-center p-6">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <p className="text-6xl mb-3">👶</p>
+          <div className="flex justify-center mb-3">
+            <img src="/logo-babycontrol.png" alt="BabyControl" className="h-28 w-auto" />
+          </div>
           <h1 className="text-3xl font-bold text-purple-600">BabyControl</h1>
           <p className="text-slate-500 mt-1">Control inteligente para tu bebe</p>
         </div>
