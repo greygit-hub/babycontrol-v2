@@ -27,7 +27,7 @@ function headerRow(ws: ExcelJS.Worksheet, cols: string[], color: string) {
     cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: color } };
     cell.font = HEADER_FONT;
     cell.alignment = { vertical: "middle", horizontal: "center", wrapText: false };
-    cell.border = { bottom: { style: "thin", color: { argb: "FFE2E8F0" } } };
+    cell.border = {};
   });
   row.getCell(1).alignment = { vertical: "middle", horizontal: "left" };
   return row;
@@ -40,7 +40,6 @@ function dataRow(ws: ExcelJS.Worksheet, vals: (string | number)[], isEven: boole
     cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: isEven ? WHITE : GRAY_LIGHT } };
     cell.font = CELL_FONT;
     cell.alignment = { vertical: "middle", wrapText: false };
-    cell.border = { bottom: { style: "hair", color: { argb: "FFE2E8F0" } } };
   });
   return row;
 }
@@ -86,7 +85,7 @@ export async function GET(req: NextRequest) {
   const startDate = start.slice(0, 10);
   const endDate = end.slice(0, 10);
 
-  const [baby, records, checks, notas] = await Promise.all([
+  const [baby, records, checks, notas, medicTrats, suplTrats] = await Promise.all([
     prisma.baby.findUnique({ where: { id: babyId } }),
     prisma.record.findMany({
       where: { babyId, recordedAt: { gte: new Date(start), lte: new Date(end) } },
@@ -99,6 +98,8 @@ export async function GET(req: NextRequest) {
     prisma.estimulacionNota.findMany({
       where: { babyId, fecha: { gte: startDate, lte: endDate } },
     }),
+    prisma.medicamentoTratamiento.findMany({ where: { babyId }, include: { administraciones: true } }),
+    prisma.suplementoTratamiento.findMany({ where: { babyId }, include: { administraciones: true } }),
   ]);
 
   const wb = new ExcelJS.Workbook();
@@ -143,7 +144,7 @@ export async function GET(req: NextRequest) {
   titleRow.getCell(1).alignment = { vertical: "middle", horizontal: "left" };
   ws1.mergeCells(1, 1, 1, 4);
   if (logoId !== null) {
-    ws1.addImage(logoId, { tl: { col: 0.1, row: 0.1 } as any, ext: { width: 48, height: 48 } });
+    ws1.addImage(logoId, { tl: { col: 3.4, row: 0.05 } as any, ext: { width: 48, height: 48 } });
   }
 
   const subRow = ws1.addRow([`Generado el ${fechaGenerado}`]);
@@ -195,10 +196,12 @@ export async function GET(req: NextRequest) {
     cell.font = HEADER_FONT;
     cell.alignment = { vertical: "middle" };
   });
-  const medsRecs = records.filter(r => r.type === "MEDICAMENTO");
-  const suplRecs = records.filter(r => r.type === "SUPLEMENTO");
-  const medsByNameXls = medsRecs.reduce((acc, r) => { const n = r.notes || "Medicamento"; acc[n] = (acc[n] || 0) + 1; return acc; }, {} as Record<string, number>);
-  const suplsByNameXls = suplRecs.reduce((acc, r) => { const n = r.notes || "Suplemento"; acc[n] = (acc[n] || 0) + 1; return acc; }, {} as Record<string, number>);
+  const startMs = new Date(start).getTime();
+  const endMs   = new Date(end).getTime();
+  const medsInPeriod  = medicTrats.map(t => ({ nombre: t.nombre, count: t.administraciones.filter(a => { const ts = new Date(a.administradoEn).getTime(); return ts >= startMs && ts <= endMs; }).length })).filter(t => t.count > 0);
+  const suplsInPeriod = suplTrats.map(t => ({ nombre: t.nombre, count: t.administraciones.filter(a => { const ts = new Date(a.administradoEn).getTime(); return ts >= startMs && ts <= endMs; }).length })).filter(t => t.count > 0);
+  const totalMedsXls  = medsInPeriod.reduce((s, t) => s + t.count, 0);
+  const totalSuplXls  = suplsInPeriod.reduce((s, t) => s + t.count, 0);
   const totalPanalesUnicos = new Set(records.filter(r => r.type === "PANAL_PIPI" || r.type === "PANAL_POPO").map(r => new Date(r.recordedAt).toISOString().slice(0, 16))).size;
   const statsData: [string, string | number][] = [
     ["Total de registros", records.length],
@@ -213,8 +216,8 @@ export async function GET(req: NextRequest) {
     ["  → Sueño de día (☀️ 06-22h)", minToHm(totalSuenoDay)],
     ["  → Sueño de noche (🌙 22-06h)", minToHm(totalSuenoNight)],
     ...(totalDespierto > 0 ? [["  → Despierto estimado (👁️)", minToHm(totalDespierto)] as [string, string]] : []),
-    [`Dosis de medicamento${Object.keys(medsByNameXls).length > 1 ? "s" : ""} (${medsRecs.length} dosis · ${Object.keys(medsByNameXls).length} med)`, Object.entries(medsByNameXls).map(([n, c]) => `${n}: ${c}`).join(", ") || medsRecs.length],
-    [`Dosis de suplemento${Object.keys(suplsByNameXls).length > 1 ? "s" : ""} (${suplRecs.length} dosis · ${Object.keys(suplsByNameXls).length} supl)`, Object.entries(suplsByNameXls).map(([n, c]) => `${n}: ${c}`).join(", ") || suplRecs.length],
+    ...(totalMedsXls > 0 ? [[`Medicamentos (${medsInPeriod.length} med · ${totalMedsXls} dosis)`, totalMedsXls] as [string, number]] : []),
+    ...(totalSuplXls > 0 ? [[`Suplementos (${suplsInPeriod.length} supl · ${totalSuplXls} dosis)`, totalSuplXls] as [string, number]] : []),
     ["Actividades de estimulación", checks.length],
   ].filter(([, v]) => v !== 0 && v !== "") as [string, string | number][];
   statsData.forEach(([c, v], i) => dataRow(ws1, [c, v], i % 2 === 0));

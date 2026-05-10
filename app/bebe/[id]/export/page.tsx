@@ -13,6 +13,7 @@ type EstimulData = Record<string, EstimulDia>;
 const VERSION = "v1.0";
 
 type VacunaRec = { id: string; nombre: string; folio: string | null; aplicadaEn: string | null; clinica: string | null };
+type Tratamiento = { id: string; nombre: string; activo: boolean; administraciones: { id: string; administradoEn: string }[] };
 
 const VACUNAS_CALENDARIO: { nombre: string; edadMeses: number; etiqueta: string }[] = [
   { nombre: "BCG", edadMeses: 0, etiqueta: "Al nacer" },
@@ -146,22 +147,28 @@ export default function ExportPage() {
   const [fecha, setFecha] = React.useState(hoy);
   const [exportingExcel, setExportingExcel] = React.useState(false);
   const [vacunas, setVacunas] = React.useState<VacunaRec[]>([]);
+  const [tratamientos, setTratamientos] = React.useState<Tratamiento[]>([]);
+  const [suplTratamientos, setSuplTratamientos] = React.useState<Tratamiento[]>([]);
   const [modoExport, setModoExport] = React.useState<"resumen" | "detalle">("detalle");
 
   async function generar(per: string, fec: string) {
     setLoading(true);
     setGenerated(false);
     const { start, end } = getRange(per, fec);
-    const [r1, r2, r3, r4] = await Promise.all([
+    const [r1, r2, r3, r4, r5, r6] = await Promise.all([
       fetch("/api/baby?babyId=" + babyId),
       fetch(`/api/records?babyId=${babyId}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`),
       fetch(`/api/estimulacion?babyId=${babyId}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`),
       fetch("/api/vacuna?babyId=" + babyId),
+      fetch("/api/medicamento-tratamiento?babyId=" + babyId),
+      fetch("/api/suplemento-tratamiento?babyId=" + babyId),
     ]);
     if (r1.ok) setBaby(await r1.json());
     if (r2.ok) { const recs: RecordItem[] = await r2.json(); setRecords([...recs].reverse()); }
     if (r3.ok) setEstimulData(await r3.json());
     if (r4.ok) setVacunas(await r4.json());
+    if (r5.ok) setTratamientos(await r5.json());
+    if (r6.ok) setSuplTratamientos(await r6.json());
     setLoading(false);
     setGenerated(true);
   }
@@ -193,12 +200,13 @@ export default function ExportPage() {
   const totalSuenoDay    = suenoRecs.filter(r => new Date(r.recordedAt).getHours() >= 6 && new Date(r.recordedAt).getHours() < 22).reduce((s, r) => s + (r.pechoMin ?? 0), 0);
   const totalSuenoNight  = totalSueno - totalSuenoDay;
   const totalDespierto   = totalSueno > 0 ? Math.max(0, 1440 - totalSueno) : 0;
-  const totalMeds        = records.filter(r => r.type === "MEDICAMENTO").length;
-  const totalSupl        = records.filter(r => r.type === "SUPLEMENTO").length;
-  const medsByName       = records.filter(r => r.type === "MEDICAMENTO").reduce((acc, r) => { const n = r.notes || "Medicamento"; acc[n] = (acc[n] || 0) + 1; return acc; }, {} as Record<string, number>);
-  const suplsByName      = records.filter(r => r.type === "SUPLEMENTO").reduce((acc, r) => { const n = r.notes || "Suplemento"; acc[n] = (acc[n] || 0) + 1; return acc; }, {} as Record<string, number>);
-  const medsBreakdown    = Object.entries(medsByName);
-  const suplsBreakdown   = Object.entries(suplsByName);
+  const { start: periodoStart, end: periodoEnd } = getRange(periodo, fecha);
+  const startMs = new Date(periodoStart).getTime();
+  const endMs   = new Date(periodoEnd).getTime();
+  const medsBreakdown  = tratamientos.map(t => ({ nombre: t.nombre, count: t.administraciones.filter(a => { const ts = new Date(a.administradoEn).getTime(); return ts >= startMs && ts <= endMs; }).length })).filter(t => t.count > 0);
+  const suplsBreakdown = suplTratamientos.map(t => ({ nombre: t.nombre, count: t.administraciones.filter(a => { const ts = new Date(a.administradoEn).getTime(); return ts >= startMs && ts <= endMs; }).length })).filter(t => t.count > 0);
+  const totalMeds = medsBreakdown.reduce((s, t) => s + t.count, 0);
+  const totalSupl = suplsBreakdown.reduce((s, t) => s + t.count, 0);
   function minToHm(min: number): string { if (min <= 0) return "0 min"; const h = Math.floor(min / 60); const m = min % 60; if (h === 0) return `${m} min`; if (m === 0) return `${h}h`; return `${h}h ${m}min`; }
   const grupos       = agrupar(records, periodo);
   const fechaGenerado = new Date().toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" });
@@ -264,17 +272,17 @@ export default function ExportPage() {
           {/* Encabezado */}
           <div className="border-b-4 border-purple-600 pb-6">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <img src="/logo-babycontrol.png" alt="BabyControl" style={{ height: 90, width: "auto" }} />
-                <div>
-                  <p className="text-purple-700 font-black text-3xl tracking-tight">BabyControl</p>
-                  <p className="text-slate-400 text-sm mt-0.5">Reporte de salud y cuidado</p>
-                  <p className="text-purple-300 text-xs mt-1 font-semibold tracking-widest uppercase">{VERSION}</p>
-                </div>
+              <div>
+                <p className="text-purple-700 font-black text-3xl tracking-tight">BabyControl</p>
+                <p className="text-slate-400 text-sm mt-0.5">Reporte de salud y cuidado</p>
+                <p className="text-purple-300 text-xs mt-1 font-semibold tracking-widest uppercase">{VERSION}</p>
               </div>
-              <div className="text-right">
-                <p className="text-xs text-slate-400 uppercase tracking-wide">Generado el</p>
-                <p className="text-sm font-semibold text-slate-700">{fechaGenerado}</p>
+              <div className="flex items-center gap-4">
+                <div className="text-right">
+                  <p className="text-xs text-slate-400 uppercase tracking-wide">Generado el</p>
+                  <p className="text-sm font-semibold text-slate-700">{fechaGenerado}</p>
+                </div>
+                <img src="/logo-babycontrol.png" alt="BabyControl" style={{ height: 80, width: "auto" }} />
               </div>
             </div>
           </div>
