@@ -733,7 +733,7 @@ export default function BebePage() {
                 </div>
                 {!isEditing && <div className="mt-1 ml-8">
                   {r.formulaMl ? <p className="text-xs opacity-80">{r.formulaMl} ml</p> : null}
-                  {r.pechoMin ? <p className="text-xs opacity-80">{r.pechoMin} min</p> : null}
+                  {r.pechoMin ? <p className="text-xs opacity-80">{r.type === "SUENO" ? `${new Date(r.recordedAt).getHours() >= 6 && new Date(r.recordedAt).getHours() < 22 ? "☀️" : "🌙"} ${minToHm(r.pechoMin)}` : `${r.pechoMin} min`}</p> : null}
                   {r.notes ? <p className="text-xs opacity-80 italic">{r.notes}</p> : null}
                 </div>}
                 {isEditing && <div className="mt-3 pt-3 border-t border-current border-opacity-20 space-y-2">

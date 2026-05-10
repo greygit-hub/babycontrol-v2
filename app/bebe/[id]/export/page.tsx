@@ -396,7 +396,12 @@ export default function ExportPage() {
                     const dt = new Date(r.recordedAt);
                     const detalles: string[] = [];
                     if (r.formulaMl) detalles.push(r.formulaMl + " ml");
-                    if (r.pechoMin) detalles.push(r.pechoMin + " min");
+                    if (r.type === "SUENO" && r.pechoMin) {
+                      const isDay = new Date(r.recordedAt).getHours() >= 6 && new Date(r.recordedAt).getHours() < 22;
+                      detalles.push(`${isDay ? "☀️" : "🌙"} ${minToHm(r.pechoMin)}`);
+                    } else if (r.pechoMin) {
+                      detalles.push(r.pechoMin + " min");
+                    }
                     if (r.notes) detalles.push(r.notes);
                     return (
                       <tr key={r.id} className={i % 2 === 0 ? "bg-white" : "bg-slate-50"}>

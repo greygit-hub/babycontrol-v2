@@ -134,6 +134,7 @@ export async function GET(req: NextRequest) {
 
   // ── Sheet 1: Resumen ──────────────────────────────────────────────
   const ws1 = wb.addWorksheet("Resumen");
+  ws1.views = [{ showGridLines: false }];
   ws1.columns = [{ width: 28 }, { width: 32 }, { width: 18 }, { width: 18 }];
 
   // Encabezado BabyControl (fila alta para el logo)
@@ -144,7 +145,7 @@ export async function GET(req: NextRequest) {
   titleRow.getCell(1).alignment = { vertical: "middle", horizontal: "left" };
   ws1.mergeCells(1, 1, 1, 4);
   if (logoId !== null) {
-    ws1.addImage(logoId, { tl: { col: 3.4, row: 0.05 } as any, ext: { width: 48, height: 48 } });
+    ws1.addImage(logoId, { tl: { col: 3.2, row: 0.05 } as any, ext: { width: 90, height: 90 } });
   }
 
   const subRow = ws1.addRow([`Generado el ${fechaGenerado}`]);
@@ -158,7 +159,7 @@ export async function GET(req: NextRequest) {
   const nombreRowNum = ws1.rowCount + 1;
   infoRow(ws1, "Nombre", baby?.name ?? "—", 4);
   if (fotoId !== null) {
-    ws1.addImage(fotoId, { tl: { col: 3.2, row: nombreRowNum - 1 } as any, ext: { width: 48, height: 48 } });
+    ws1.addImage(fotoId, { tl: { col: 3.0, row: nombreRowNum - 1 } as any, ext: { width: 130, height: 140 } });
   }
   if (birthDate) {
     infoRow(ws1, "Fecha de nacimiento", birthDate.toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" }), 4);
@@ -189,13 +190,15 @@ export async function GET(req: NextRequest) {
   const totalDespierto = totalSueno > 0 ? Math.max(0, 1440 - totalSueno) : 0;
   function minToHm(min: number): string { if (min <= 0) return "0 min"; const h = Math.floor(min / 60); const m = min % 60; if (h === 0) return `${m} min`; if (m === 0) return `${h}h`; return `${h}h ${m}min`; }
   sectionTitle(ws1, "Resumen del periodo", 4);
-  const statsHeaders = ws1.addRow(["Concepto", "Valor"]);
+  const statsHeaders = ws1.addRow(["Concepto", "Valor", "", ""]);
   statsHeaders.height = 20;
-  statsHeaders.eachCell(cell => {
+  for (let c = 1; c <= 4; c++) {
+    const cell = statsHeaders.getCell(c);
     cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: PURPLE } };
     cell.font = HEADER_FONT;
-    cell.alignment = { vertical: "middle" };
-  });
+    cell.alignment = { vertical: "middle", horizontal: c === 1 ? "left" : "center" };
+  }
+  ws1.mergeCells(statsHeaders.number, 2, statsHeaders.number, 4);
   const startMs = new Date(start).getTime();
   const endMs   = new Date(end).getTime();
   const medsInPeriod  = medicTrats.map(t => ({ nombre: t.nombre, count: t.administraciones.filter(a => { const ts = new Date(a.administradoEn).getTime(); return ts >= startMs && ts <= endMs; }).length })).filter(t => t.count > 0);
@@ -220,10 +223,17 @@ export async function GET(req: NextRequest) {
     ...(totalSuplXls > 0 ? [[`Suplementos (${suplsInPeriod.length} supl · ${totalSuplXls} dosis)`, totalSuplXls] as [string, number]] : []),
     ["Actividades de estimulación", checks.length],
   ].filter(([, v]) => v !== 0 && v !== "") as [string, string | number][];
-  statsData.forEach(([c, v], i) => dataRow(ws1, [c, v], i % 2 === 0));
+  statsData.forEach(([c, v], i) => {
+    const row = dataRow(ws1, [c, v], i % 2 === 0);
+    const bg = { argb: i % 2 === 0 ? WHITE : GRAY_LIGHT };
+    row.getCell(3).fill = { type: "pattern", pattern: "solid", fgColor: bg };
+    row.getCell(4).fill = { type: "pattern", pattern: "solid", fgColor: bg };
+    ws1.mergeCells(row.number, 2, row.number, 4);
+  });
 
   // ── Sheet 2: Registros ────────────────────────────────────────────
   const ws2 = wb.addWorksheet("Registros");
+  ws2.views = [{ showGridLines: false }];
   ws2.columns = [{ width: 14 }, { width: 9 }, { width: 18 }, { width: 14 }, { width: 36 }];
 
   const ws2Title = ws2.addRow(["🍼 BabyControl — Registros detallados"]);
@@ -247,11 +257,15 @@ export async function GET(req: NextRequest) {
   } else {
     records.forEach((r, i) => {
       const dt = new Date(r.recordedAt);
+      const isDay = dt.getHours() >= 6 && dt.getHours() < 22;
+      const duracion = r.type === "SUENO" && r.pechoMin
+        ? (isDay ? "☀️ " : "🌙 ") + minToHm(r.pechoMin)
+        : (r.formulaMl ?? r.pechoMin ?? "");
       dataRow(ws2, [
         dt.toLocaleDateString("es-MX"),
         dt.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }),
         TIPO_LABEL[r.type] ?? r.type,
-        r.formulaMl ?? r.pechoMin ?? "",
+        duracion,
         r.notes ?? "",
       ], i % 2 === 0);
     });
@@ -259,6 +273,7 @@ export async function GET(req: NextRequest) {
 
   // ── Sheet 3: Estimulación ─────────────────────────────────────────
   const ws3 = wb.addWorksheet("Estimulación");
+  ws3.views = [{ showGridLines: false }];
   ws3.columns = [{ width: 14 }, { width: 55 }, { width: 40 }];
 
   const ws3Title = ws3.addRow(["🌱 BabyControl — Estimulación temprana"]);
@@ -289,6 +304,7 @@ export async function GET(req: NextRequest) {
 
   // ── Sheet 4: Pañal ────────────────────────────────────────────────
   const ws4 = wb.addWorksheet("Pañal");
+  ws4.views = [{ showGridLines: false }];
   ws4.columns = [{ width: 18 }, { width: 22 }, { width: 18 }, { width: 22 }, { width: 40 }];
 
   const ws4Title = ws4.addRow(["🩲 BabyControl — Guía de pañales"]);
