@@ -741,7 +741,7 @@ export default function BebePage() {
                       <p className="text-sm font-bold text-slate-800 truncate">{t.nombre}</p>
                       <p className="text-xs text-slate-500">{st.dosisDadas}/{st.totalDosis} dosis · {st.completado ? "Completado" : st.atrasada ? <span className="text-red-600 font-semibold">¡Atrasada {formatRetraso(st.minHasta)}!</span> : <span className="text-orange-600">Próxima en {formatRetraso(st.minHasta)}</span>}</p>
                     </div>
-                    {!st.completado && <button onClick={() => { registrarDosis(t.id); }} className={"text-xs font-bold px-3 py-2 rounded-xl text-white " + (st.atrasada ? "bg-red-500" : "bg-orange-400")}>Dar</button>}
+                    {!st.completado && <button onClick={() => { registrarDosis(t.id); }} disabled={!st.atrasada && st.minHasta > 0} className={"text-xs font-bold px-3 py-2 rounded-xl text-white disabled:opacity-40 " + (st.atrasada ? "bg-red-500" : "bg-orange-400")}>Dar</button>}
                   </div>
                 ); })}
                 {suplActivos.map(t => { const st = calcTratStatus(t); return (
@@ -751,7 +751,7 @@ export default function BebePage() {
                       <p className="text-sm font-bold text-slate-800 truncate">{t.nombre}</p>
                       <p className="text-xs text-slate-500">{st.dosisDadas}/{st.totalDosis} dosis · {st.completado ? "Completado" : st.atrasada ? <span className="text-red-600 font-semibold">¡Atrasada!</span> : <span className="text-teal-600">Próxima en {formatRetraso(st.minHasta)}</span>}</p>
                     </div>
-                    {!st.completado && <button onClick={() => { registrarDosisSup(t.id); }} className="text-xs font-bold px-3 py-2 rounded-xl text-white bg-teal-500">Dar</button>}
+                    {!st.completado && <button onClick={() => { registrarDosisSup(t.id); }} disabled={!st.atrasada && st.minHasta > 0} className="text-xs font-bold px-3 py-2 rounded-xl text-white bg-teal-500 disabled:opacity-40">Dar</button>}
                   </div>
                 ); })}
               </div>
@@ -970,7 +970,7 @@ export default function BebePage() {
                 {proximos.map(t => { const st = calcTratStatus(t); return (
                   <div key={t.id} className="bg-white rounded-2xl px-3 py-2 flex items-center justify-between gap-2">
                     <div><p className="text-sm font-semibold text-orange-700">{t.nombre}</p><p className="text-xs text-orange-500">{t.dosis} · próxima en {formatRetraso(st.minHasta)}</p></div>
-                    <button onClick={() => registrarDosis(t.id)} disabled={registrandoDosis === t.id} className="px-3 py-2 rounded-xl text-xs font-bold bg-orange-400 text-white shrink-0 disabled:opacity-50">{registrandoDosis === t.id ? "..." : "Dar ahora"}</button>
+                    <button onClick={() => registrarDosis(t.id)} disabled={registrandoDosis === t.id || st.minHasta > 0} className="px-3 py-2 rounded-xl text-xs font-bold bg-orange-400 text-white shrink-0 disabled:opacity-50">{registrandoDosis === t.id ? "..." : st.minHasta > 0 ? `En ${formatRetraso(st.minHasta)}` : "Dar ahora"}</button>
                   </div>
                 ); })}
               </div>
@@ -1170,7 +1170,7 @@ export default function BebePage() {
                         </div>}
                       </div>
                       <div className="flex gap-2">
-                        {!st.completado && <button onClick={() => registrarDosis(t.id)} disabled={registrandoDosis === t.id} className="flex-1 py-2 rounded-xl text-sm font-bold bg-red-500 text-white disabled:opacity-50">{registrandoDosis === t.id ? "Registrando..." : "✓ Dar dosis ahora"}</button>}
+                        {!st.completado && (() => { const bloqueado = !st.atrasada && st.minHasta > 0; return <button onClick={() => registrarDosis(t.id)} disabled={registrandoDosis === t.id || bloqueado} className="flex-1 py-2 rounded-xl text-sm font-bold bg-red-500 text-white disabled:opacity-50">{registrandoDosis === t.id ? "Registrando..." : bloqueado ? `⏳ Disponible en ${formatRetraso(st.minHasta)}` : "✓ Dar dosis ahora"}</button>; })()}
                         <button onClick={() => cerrarTratamiento(t.id)} className="px-3 py-2 rounded-xl text-xs text-slate-500 border border-slate-200 bg-white">Cerrar</button>
                       </div>
                     </div>
@@ -1245,7 +1245,7 @@ export default function BebePage() {
                         {!st.completado && <div className="flex justify-between text-xs pt-1"><span className="text-slate-500">Próxima dosis</span><span className={"font-semibold " + (st.atrasada ? "text-red-600" : "text-teal-600")}>{st.atrasada ? `Hace ${formatRetraso(st.minHasta)}` : `En ${formatRetraso(st.minHasta)}`}</span></div>}
                       </div>
                       <div className="flex gap-2">
-                        {!st.completado && <button onClick={() => registrarDosisSup(t.id)} disabled={registrandoDosisSup === t.id} className="flex-1 py-2 rounded-xl text-sm font-bold bg-teal-500 text-white disabled:opacity-50">{registrandoDosisSup === t.id ? "Registrando..." : "✓ Dar dosis ahora"}</button>}
+                        {!st.completado && (() => { const bloqueado = !st.atrasada && st.minHasta > 0; return <button onClick={() => registrarDosisSup(t.id)} disabled={registrandoDosisSup === t.id || bloqueado} className="flex-1 py-2 rounded-xl text-sm font-bold bg-teal-500 text-white disabled:opacity-50">{registrandoDosisSup === t.id ? "Registrando..." : bloqueado ? `⏳ Disponible en ${formatRetraso(st.minHasta)}` : "✓ Dar dosis ahora"}</button>; })()}
                         <button onClick={() => cerrarSuplemento(t.id)} className="px-3 py-2 rounded-xl text-xs text-slate-500 border border-slate-200 bg-white">Cerrar</button>
                       </div>
                     </div>
