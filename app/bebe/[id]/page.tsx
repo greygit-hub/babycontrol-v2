@@ -174,7 +174,11 @@ export default function BebePage() {
   const [panalPopo, setPanalPopo] = React.useState(false);
   const [dismissedAlerts, setDismissedAlerts] = React.useState<Set<string>>(new Set());
   const notifiedDoses = React.useRef<Set<string>>(new Set());
+  const [voiceField, setVoiceField] = React.useState<string | null>(null);
+  const [hasSpeech, setHasSpeech] = React.useState(false);
+  const recogRef = React.useRef<any>(null);
 
+  React.useEffect(() => { setHasSpeech(!!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)); }, []);
   React.useEffect(() => { loadAll(); loadTratamientos(); loadSuplementos(); loadVacunas(); loadHistorial(); loadGrowthHistory(); }, [babyId]);
   React.useEffect(() => { loadRecords(); }, [fechaSeleccionada]);
   React.useEffect(() => { loadStats(); }, [periodo, babyId]);
@@ -625,6 +629,40 @@ export default function BebePage() {
     { nombre: "Sabin/IPV (refuerzo)", edadMeses: 48, etiqueta: "4 años" },
   ];
 
+  function startVoice(fieldId: string, onResult: (t: string) => void) {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) return;
+    if (recogRef.current) { try { recogRef.current.abort(); } catch {} }
+    const r = new SR();
+    r.lang = "es-MX";
+    r.interimResults = false;
+    r.maxAlternatives = 1;
+    setVoiceField(fieldId);
+    r.onresult = (e: any) => { onResult(e.results[0][0].transcript.trim()); setVoiceField(null); };
+    r.onerror = () => setVoiceField(null);
+    r.onend = () => { if (recogRef.current === r) setVoiceField(null); };
+    recogRef.current = r;
+    r.start();
+  }
+  function stopVoice() { try { recogRef.current?.abort(); } catch {} recogRef.current = null; setVoiceField(null); }
+  function parseVoiceTime(t: string): string | null {
+    const m = t.match(/(\d{1,2})[:\s.,](\d{2})/);
+    if (m) return m[1].padStart(2, "0") + ":" + m[2];
+    const parts = t.trim().split(/\s+/);
+    if (parts.length === 2 && /^\d{1,2}$/.test(parts[0]) && /^\d{2}$/.test(parts[1]))
+      return parts[0].padStart(2, "0") + ":" + parts[1];
+    return null;
+  }
+  function parseVoiceNum(t: string): string | null {
+    const digits = t.replace(/[^\d]/g, "");
+    return digits.length > 0 ? digits : null;
+  }
+  function MicBtn({ id, onResult, parse }: { id: string; onResult: (v: string) => void; parse?: (t: string) => string | null }) {
+    if (!hasSpeech) return null;
+    const active = voiceField === id;
+    return <button type="button" onClick={() => active ? stopVoice() : startVoice(id, t => { const v = parse ? parse(t) : t; if (v !== null) onResult(v); })} className={"ml-2 text-sm px-2 py-1 rounded-xl border-2 transition-all shrink-0 " + (active ? "bg-red-100 border-red-400 text-red-600 animate-pulse" : "bg-purple-50 border-purple-200 text-purple-400")}>{active ? "🔴" : "🎙️"}</button>;
+  }
+
   const totalFormula = records.filter(r => r.type === "FORMULA").reduce((s, r) => s + (r.formulaMl ?? 0), 0);
   const totalPipi = records.filter(r => r.type === "PANAL_PIPI").length;
   const totalPopo = records.filter(r => r.type === "PANAL_POPO").length;
@@ -1026,16 +1064,33 @@ export default function BebePage() {
         {seccion === "registro" && <div className="bg-white rounded-3xl shadow-sm border p-5 space-y-4">
           <h2 className="text-lg font-bold text-slate-700">Nuevo registro</h2>
           <div className="grid grid-cols-2 gap-3">{TIPOS.map(t => <button key={t.value} onClick={() => setTipo(t.value)} className={"p-4 rounded-2xl border-2 text-left transition-all " + (tipo === t.value ? t.color + " border-current shadow-md" : "bg-slate-50 border-slate-200 text-slate-600")}><p className="text-3xl mb-1">{t.emoji}</p><p className="font-semibold text-sm">{t.label}</p></button>)}</div>
-          <div><label className="text-sm font-semibold text-purple-700 block mb-2">Hora</label><input type="time" value={horaRegistro} onChange={e => setHoraRegistro(e.target.value)} className="w-full border-2 border-purple-300 rounded-2xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-100" /></div>
-          {tipo === "FORMULA" && <div><label className="text-sm font-semibold text-purple-700 block mb-2">Mililitros</label><div className="flex gap-2 flex-wrap mb-2">{[30,60,90,120,150,180].map(ml => <button key={ml} onClick={() => setFormulaMl(String(ml))} className={"px-4 py-2 rounded-2xl border-2 font-semibold text-sm " + (formulaMl === String(ml) ? "bg-blue-500 text-white border-blue-500" : "bg-white border-slate-200 text-slate-600")}>{ml}</button>)}</div><input type="number" value={formulaMl} onChange={e => setFormulaMl(e.target.value)} placeholder="Otra cantidad" className="w-full border-2 border-purple-300 rounded-2xl px-4 py-3 text-sm text-slate-800 placeholder:text-purple-200 focus:outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-100" /></div>}
+          {tipo !== "SUENO" && <div>
+            <div className="flex items-center mb-2"><label className="text-sm font-semibold text-purple-700">Hora</label><MicBtn id="rh" onResult={v => setHoraRegistro(v)} parse={parseVoiceTime} /></div>
+            <input type="time" value={horaRegistro} onChange={e => setHoraRegistro(e.target.value)} className="w-full border-2 border-purple-300 rounded-2xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-100" />
+          </div>}
+          {tipo === "FORMULA" && <div>
+            <div className="flex items-center mb-2"><label className="text-sm font-semibold text-purple-700">Mililitros</label><MicBtn id="rml" onResult={v => setFormulaMl(v)} parse={parseVoiceNum} /></div>
+            <div className="flex gap-2 flex-wrap mb-2">{[30,60,90,120,150,180].map(ml => <button key={ml} onClick={() => setFormulaMl(String(ml))} className={"px-4 py-2 rounded-2xl border-2 font-semibold text-sm " + (formulaMl === String(ml) ? "bg-blue-500 text-white border-blue-500" : "bg-white border-slate-200 text-slate-600")}>{ml}</button>)}</div>
+            <input type="number" value={formulaMl} onChange={e => setFormulaMl(e.target.value)} placeholder="Otra cantidad" className="w-full border-2 border-purple-300 rounded-2xl px-4 py-3 text-sm text-slate-800 placeholder:text-purple-200 focus:outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-100" />
+          </div>}
           {tipo === "SUENO" && <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="text-sm font-semibold text-purple-700 block mb-2">Hora que se durmió</label><input type="time" value={suenoInicio} onChange={e => setSuenoInicio(e.target.value)} className="w-full border-2 border-purple-300 rounded-2xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-100" /></div>
-                <div><label className="text-sm font-semibold text-purple-700 block mb-2">Hora que despertó</label><input type="time" value={suenoFin} onChange={e => setSuenoFin(e.target.value)} className="w-full border-2 border-purple-300 rounded-2xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-100" /></div>
+                <div>
+                  <div className="flex items-center mb-2"><label className="text-sm font-semibold text-purple-700">Se durmió</label><MicBtn id="rs" onResult={v => setSuenoInicio(v)} parse={parseVoiceTime} /></div>
+                  <input type="time" value={suenoInicio} onChange={e => setSuenoInicio(e.target.value)} className="w-full border-2 border-purple-300 rounded-2xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-100" />
+                </div>
+                <div>
+                  <div className="flex items-center mb-2"><label className="text-sm font-semibold text-purple-700">Despertó</label><MicBtn id="re" onResult={v => setSuenoFin(v)} parse={parseVoiceTime} /></div>
+                  <input type="time" value={suenoFin} onChange={e => setSuenoFin(e.target.value)} className="w-full border-2 border-purple-300 rounded-2xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-100" />
+                </div>
               </div>
               {suenoInicio && suenoFin && (() => { const [sh,sm]=suenoInicio.split(":").map(Number); const [eh,em]=suenoFin.split(":").map(Number); let m=(eh*60+em)-(sh*60+sm); if(m<=0)m+=1440; return <p className="text-xs text-center text-indigo-600 font-semibold bg-indigo-50 rounded-xl py-2">😴 Duración: {minToHm(m)}</p>; })()}
             </div>}
-          {tipo === "PECHO" && <div><label className="text-sm font-semibold text-purple-700 block mb-2">Minutos</label><div className="flex gap-2 flex-wrap mb-2">{[5,10,15,20,30,60].map(min => <button key={min} onClick={() => setPechoMin(String(min))} className={"px-4 py-2 rounded-2xl border-2 font-semibold text-sm " + (pechoMin === String(min) ? "bg-pink-500 text-white border-pink-500" : "bg-white border-slate-200 text-slate-600")}>{min}</button>)}</div><input type="number" value={pechoMin} onChange={e => setPechoMin(e.target.value)} placeholder="Otros minutos" className="w-full border-2 border-purple-300 rounded-2xl px-4 py-3 text-sm text-slate-800 placeholder:text-purple-200 focus:outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-100" /></div>}
+          {tipo === "PECHO" && <div>
+            <div className="flex items-center mb-2"><label className="text-sm font-semibold text-purple-700">Minutos</label><MicBtn id="rpm" onResult={v => setPechoMin(v)} parse={parseVoiceNum} /></div>
+            <div className="flex gap-2 flex-wrap mb-2">{[5,10,15,20,30,60].map(min => <button key={min} onClick={() => setPechoMin(String(min))} className={"px-4 py-2 rounded-2xl border-2 font-semibold text-sm " + (pechoMin === String(min) ? "bg-pink-500 text-white border-pink-500" : "bg-white border-slate-200 text-slate-600")}>{min}</button>)}</div>
+            <input type="number" value={pechoMin} onChange={e => setPechoMin(e.target.value)} placeholder="Otros minutos" className="w-full border-2 border-purple-300 rounded-2xl px-4 py-3 text-sm text-slate-800 placeholder:text-purple-200 focus:outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-100" />
+          </div>}
           {tipo === "PANAL" && (
             <div className="space-y-2">
               <label className="text-sm font-semibold text-purple-700 block">Contenido del pañal</label>
@@ -1205,7 +1260,10 @@ export default function BebePage() {
               </div>
             );
           })()}
-          {tipo !== "MEDICAMENTO" && tipo !== "SUPLEMENTO" && <div><label className="text-sm font-semibold text-purple-700 block mb-2">Notas opcionales</label><textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Observaciones..." className="w-full border-2 border-purple-300 rounded-2xl px-4 py-3 text-sm text-slate-800 placeholder:text-purple-200 focus:outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-100 resize-none" rows={2} /></div>}
+          {tipo !== "MEDICAMENTO" && tipo !== "SUPLEMENTO" && <div>
+            <div className="flex items-center mb-2"><label className="text-sm font-semibold text-purple-700">Notas opcionales</label><MicBtn id="rn" onResult={v => setNotes(v)} /></div>
+            <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Observaciones..." className="w-full border-2 border-purple-300 rounded-2xl px-4 py-3 text-sm text-slate-800 placeholder:text-purple-200 focus:outline-none focus:border-purple-600 focus:ring-2 focus:ring-purple-100 resize-none" rows={2} />
+          </div>}
           {savedMsg && <div className="bg-green-100 border border-green-300 rounded-2xl p-3 text-center"><p className="text-green-700 font-semibold">Guardado correctamente</p></div>}
           <button onClick={guardar} disabled={saving} className="w-full py-4 rounded-2xl font-bold text-lg bg-blue-500 text-white shadow-md disabled:opacity-50">{saving ? "Guardando..." : "Guardar " + (tipoActual?.label ?? "")}</button>
         </div>}
